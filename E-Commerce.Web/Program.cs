@@ -1,8 +1,11 @@
 
 using E_Commerce.Domain.Contracts;
 using E_Commerce.Domain.Entities.IdentityModule;
+using E_Commerce.Persistence.Data.DataSeed;
 using E_Commerce.Persistence.Data.DbContext;
 using E_Commerce.Persistence.Repository;
+using E_Commerce.Services;
+using E_Commerce.Services_Abstraction;
 using E_Commerce.Web.Extentions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +14,7 @@ namespace E_Commerce.Web
 {
     public class Program
     {
-        public static async void Main(string[] args)
+        public static  async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -25,13 +28,16 @@ namespace E_Commerce.Web
             {
                 option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
             });
+            builder.Services.AddKeyedScoped<IDataInitializer, DataInitializer>("Default");
             builder.Services.AddIdentityCore<ApplicationUser>()
             .AddRoles<IdentityRole>().AddEntityFrameworkStores<EcomerceDbContext>();
+            builder.Services.AddAutoMapper(cfg => { }, typeof(ProductService).Assembly);
 
-           
+
             #region Services
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddScoped<IProductService, ProductService>();
 
             #endregion
 

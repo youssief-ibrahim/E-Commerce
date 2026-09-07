@@ -12,4 +12,8 @@
     <ProjectReference Include="..\E Commerce.Services Abstraction\E Commerce.Services Abstraction.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.2.0" />
+  </ItemGroup>
+
 </Project>

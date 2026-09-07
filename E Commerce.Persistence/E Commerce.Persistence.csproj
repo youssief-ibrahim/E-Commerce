@@ -15,8 +15,10 @@
     <ProjectReference Include="..\E Commerce.Services\E Commerce.Services.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Data\DataSeed\JSONFiles\" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Update="Data\DataSeed\JSONFiles\*.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>
