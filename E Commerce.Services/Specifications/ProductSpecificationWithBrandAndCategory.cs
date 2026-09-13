@@ -25,6 +25,26 @@ namespace E_Commerce.Services.Specifications
         {
             AddInclude(x => x.Brand);
             AddInclude(x => x.Category);
+
+            switch (queryParams.Sort)
+            {
+                case ProductSortingOptions.NameAscending:
+                    AddOrderAsc(p => p.Name);
+                    break;
+                case ProductSortingOptions.NameDescending:
+                    AddOrderDec(p => p.Name);
+                    break;
+                case ProductSortingOptions.priceAscending:
+                    AddOrderAsc(p => p.Price);
+                    break;
+                case ProductSortingOptions.priceDescending:
+                    AddOrderDec(p => p.Price);
+                    break;
+                default:
+                    AddOrderAsc(x => x.Id);
+                    break;
+            }
+            ApplyPagination(queryParams.PageSize, queryParams.PageIndex);
         }
     }
 }
