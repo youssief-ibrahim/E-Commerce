@@ -20,9 +20,15 @@ namespace E_Commerce.Presentation.Controllers
             productService = _productService;
         }
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ProductDto>>> GetAllProducts([FromQuery]ProductQueryParams queryParams)
+        public async Task<ActionResult<IReadOnlyList<ProductDto>>> GetAllProducts([FromQuery] ProductQueryParams queryParams)
         {
             var products = await productService.GetAllProductAsync(queryParams);
+            return Ok(products);
+        }
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ProductDto>> GetProduct(int id)
+        {
+            var products = await productService.GetProductByIdAsync(id);
             return Ok(products);
         }
     }

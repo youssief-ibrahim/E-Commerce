@@ -29,5 +29,11 @@ namespace E_Commerce.Persistence.Repository
             var query = SpecificationEvaluator.CreateQuery(dbContext.Set<T>(), specification);
             return await query.AsNoTracking().ToListAsync();
         }
+
+        public async Task<T?> GetByIdAsync(ISpecification<T, TKey> specification)
+        {
+            var query = SpecificationEvaluator.CreateQuery(dbContext.Set<T>(), specification);
+            return await query.FirstOrDefaultAsync();
+        }
     }
 }

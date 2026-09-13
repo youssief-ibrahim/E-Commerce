@@ -22,11 +22,17 @@ namespace E_Commerce.Services
             unitOfWork = _unitOfWork;
             mapper = _mapper;
         }
-        public async Task<IEnumerable<ProductDto>> GetAllProductAsync(ProductQueryParams queryParams)
+        public async Task<IReadOnlyList<ProductDto>> GetAllProductAsync(ProductQueryParams queryParams)
         {
             var specific = new ProductSpecificationWithBrandAndCategory(queryParams);
             var products = await unitOfWork.GetRepository<Product, int>().GetAllWithSpecificationAsync(specific);
-            return mapper.Map<IEnumerable<ProductDto>>(products);
+            return mapper.Map<IReadOnlyList<ProductDto>>(products);
+        }
+        public async Task<ProductDto?> GetProductByIdAsync(int id)
+        {
+            var specific = new ProductSpecificationWithBrandAndCategory(id);
+            var product = await unitOfWork.GetRepository<Product, int>().GetByIdAsync(specific);
+            return mapper.Map<ProductDto>(product);
         }
     }
 }
