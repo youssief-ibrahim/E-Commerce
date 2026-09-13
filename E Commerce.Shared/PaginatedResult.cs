@@ -8,7 +8,7 @@ namespace E_Commerce.Shared
 {
     public class PaginatedResult<T>
     {
-        public PaginatedResult(int pageSize, int pageIndex, int count, IEnumerable<T> data)
+        public PaginatedResult(int pageSize, int pageIndex, int count, IReadOnlyList<T> data)
         {
             PageSize = pageSize;
             PageIndex = pageIndex;
@@ -19,6 +19,6 @@ namespace E_Commerce.Shared
         public int PageSize { get; set; }
         public int PageIndex { get; set; }
         public int Count { get; set; }
-        public IEnumerable<T> Data { get; set; }
+        public IReadOnlyList<T> Data { get; set; }
     }
 }

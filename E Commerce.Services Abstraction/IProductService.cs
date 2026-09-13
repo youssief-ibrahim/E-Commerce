@@ -10,8 +10,8 @@ namespace E_Commerce.Services_Abstraction
 {
     public interface IProductService
     {
-        Task<IReadOnlyList<ProductDto>> GetAllProductAsync(ProductQueryParams queryParams);
-        //Task<PaginatedResult<ProductDto>> GetProductsAsync(ProductQueryParams queryParams);
+        //Task<IReadOnlyList<ProductDto>> GetProductsAsync(ProductQueryParams queryParams);
+        Task<PaginatedResult<ProductDto>> GetAllProductAsync(ProductQueryParams queryParams);
         Task<ProductDto?> GetProductByIdAsync(int id);
         //Task<Product> CreateProductAsync(Product product);
         //Task UpdateProductAsync(Product product);

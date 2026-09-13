@@ -18,10 +18,8 @@ namespace E_Commerce.Services.Specifications
             AddInclude(x => x.Category);
         }
         // GetAll Product
-        public ProductSpecificationWithBrandAndCategory(ProductQueryParams queryParams) : base(x =>
-            (string.IsNullOrEmpty(queryParams.Search) || x.Name.ToLower().Contains(queryParams.Search.ToLower())) &&
-            (!queryParams.BrandId.HasValue || x.BrandId == queryParams.BrandId) &&
-            (!queryParams.CategoryId.HasValue || x.CategoryId == queryParams.CategoryId))
+        public ProductSpecificationWithBrandAndCategory(ProductQueryParams queryParams) : 
+            base(ProductSpacificationHelper.GetProductCritera(queryParams))
         {
             AddInclude(x => x.Brand);
             AddInclude(x => x.Category);

@@ -9,6 +9,7 @@ using E_Commerce.Services_Abstraction;
 using E_Commerce.Web.Extentions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 
 namespace E_Commerce.Web
 {
@@ -38,7 +39,10 @@ namespace E_Commerce.Web
 
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<IProductService, ProductService>();
-
+            builder.Services.AddSingleton<IConnectionMultiplexer>(s =>
+            {
+                return ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("RedisConnection")!);
+            });
             #endregion
 
             var app = builder.Build();
