@@ -9,8 +9,8 @@ namespace E_Commerce.Domain.Contracts
 {
     public interface IGenericRepository<T, TKey> where T : BaseEntity<TKey>
     {
-        Task<IEnumerable<T>> GetAllAsync();
-        //Task<IEnumerable<T>> GetAllAsync(ISpecification<T, TKey> specification);
+        Task<IReadOnlyList<T>> GetAllAsync();
+        Task<IReadOnlyList<T>> GetAllWithSpecificationAsync(ISpecification<T, TKey> specification);
         Task<T?> GetByIdAsync(TKey id);
         //Task<T?> GetByIdAsync(ISpecification<T, TKey> specification);
         Task AddAsync(T entity);

@@ -18,10 +18,16 @@ namespace E_Commerce.Persistence.Repository
         {
             dbContext = _dbContext;
         }
-        public async Task<IEnumerable<T>> GetAllAsync() => await dbContext.Set<T>().ToListAsync();
+        public async Task<IReadOnlyList<T>> GetAllAsync() => await dbContext.Set<T>().AsNoTracking().ToListAsync();
         public async Task<T?> GetByIdAsync(TKey id) => await dbContext.Set<T>().FindAsync(id);
         public async Task AddAsync(T entity) => await dbContext.Set<T>().AddAsync(entity);
         public void Update(T entity) => dbContext.Set<T>().Update(entity);
         public void Delete(T entity) => dbContext.Set<T>().Remove(entity);
+
+        public async Task<IReadOnlyList<T>> GetAllWithSpecificationAsync(ISpecification<T, TKey> specification)
+        {
+            var query = SpecificationEvaluator.CreateQuery(dbContext.Set<T>(), specification);
+            return await query.AsNoTracking().ToListAsync();
+        }
     }
 }
