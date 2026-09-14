@@ -10,9 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace E_Commerce.Presentation.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class BasketsController: ControllerBase
+
+    public class BasketsController: ApiBaseController
     {
         private readonly IBasketService basketService;
         public BasketsController(IBasketService _basketService)

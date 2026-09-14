@@ -11,9 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace E_Commerce.Presentation.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class ProductsController : ControllerBase
+    public class ProductsController : ApiBaseController
     {
         private readonly IProductService productService;
         public ProductsController(IProductService _productService)
@@ -31,7 +29,7 @@ namespace E_Commerce.Presentation.Controllers
         public async Task<ActionResult<ProductDto>> GetProduct(int id)
         {
             var products = await productService.GetProductByIdAsync(id);
-            return Ok(products);
+            return HandleResult<ProductDto>(products);
         }
     }
 }

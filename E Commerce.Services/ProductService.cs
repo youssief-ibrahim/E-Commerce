@@ -9,6 +9,7 @@ using E_Commerce.Domain.Entities.ProductModule;
 using E_Commerce.Services.Specifications;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared;
+using E_Commerce.Shared.CommonResult;
 using E_Commerce.Shared.DTOS.ProductDTOS;
 using static E_Commerce.Services.Exceptions.NotFoundException;
 
@@ -35,12 +36,17 @@ namespace E_Commerce.Services
 
             return new PaginatedResult<ProductDto>(CountOfReturnedData, queryParams.PageIndex, CountOfAllProduct, DataToReturn);
         }
-        public async Task<ProductDto?> GetProductByIdAsync(int id)
+        public async Task<Result<ProductDto>> GetProductByIdAsync(int id)
         {
             var specific = new ProductSpecificationWithBrandAndCategory(id);
             var product = await unitOfWork.GetRepository<Product, int>().GetByIdAsync(specific);
-            if (product == null) throw new ProductNotFoundException(id);
+            if (product == null)
+                return Error.NotFound($"Product Not Found ", "Product with {id} is Not Found");
             return mapper.Map<ProductDto>(product);
+            #region BeFor ImplicitCast
+            //    return Result<ProductDto>.Fail(Error.NotFound($"Product Not Found ", "Product with {id} is Not Found"))!;
+            //return Result<ProductDto>.Ok(mapper.Map<ProductDto>(product));
+            #endregion
         }
     }
 }
