@@ -6,7 +6,9 @@ using E_Commerce.Persistence.Data.DbContext;
 using E_Commerce.Persistence.Repository;
 using E_Commerce.Services;
 using E_Commerce.Services_Abstraction;
+using E_Commerce.Web.CustomMiddleWare;
 using E_Commerce.Web.Extentions;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
@@ -54,6 +56,7 @@ namespace E_Commerce.Web
             await app.MigrateDatabaseAsync();
             await app.SeedDataAsync();
             #endregion
+            app.UseMiddleware<ExceptionHandlerMiddleWare>();
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {

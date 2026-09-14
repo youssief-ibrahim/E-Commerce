@@ -10,6 +10,7 @@ using E_Commerce.Services.Specifications;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared;
 using E_Commerce.Shared.DTOS.ProductDTOS;
+using static E_Commerce.Services.Exceptions.NotFoundException;
 
 namespace E_Commerce.Services
 {
@@ -38,6 +39,7 @@ namespace E_Commerce.Services
         {
             var specific = new ProductSpecificationWithBrandAndCategory(id);
             var product = await unitOfWork.GetRepository<Product, int>().GetByIdAsync(specific);
+            if (product == null) throw new ProductNotFoundException(id);
             return mapper.Map<ProductDto>(product);
         }
     }

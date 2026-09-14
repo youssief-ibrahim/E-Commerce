@@ -8,6 +8,7 @@ using E_Commerce.Domain.Contracts;
 using E_Commerce.Domain.Entities.CartModule;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.DTOS.BasketDTOS;
+using static E_Commerce.Services.Exceptions.NotFoundException;
 
 namespace E_Commerce.Services
 {
@@ -32,7 +33,7 @@ namespace E_Commerce.Services
         public async Task<CartDto> GetBasketAsync(string basketId)
         {
             var basket = await basketRepository.GetBasketAsync(basketId);
-            //if (basket == null) throw new BasketNotFoundException(basketId);
+            if (basket == null) throw new BasketNotFoundException(basketId);
             return mapper.Map<CartDto>(basket!);
         }
     }
