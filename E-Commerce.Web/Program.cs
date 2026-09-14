@@ -8,8 +8,10 @@ using E_Commerce.Services;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Web.CustomMiddleWare;
 using E_Commerce.Web.Extentions;
+using E_Commerce.Web.Factory;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 
@@ -35,7 +37,10 @@ namespace E_Commerce.Web
             builder.Services.AddIdentityCore<ApplicationUser>()
             .AddRoles<IdentityRole>().AddEntityFrameworkStores<EcomerceDbContext>();
             builder.Services.AddAutoMapper(cfg => { }, typeof(ProductService).Assembly);
-
+            builder.Services.Configure<ApiBehaviorOptions>(option =>
+            {
+                option.InvalidModelStateResponseFactory = ApiResponseFactory.GenerateApiValidationResponse;
+            });
 
             #region Services
 
