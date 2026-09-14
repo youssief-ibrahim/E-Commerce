@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using E_Commerce.Presentation.Attributes;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared;
 using E_Commerce.Shared.DTOS.ProductDTOS;
@@ -20,6 +21,7 @@ namespace E_Commerce.Presentation.Controllers
             productService = _productService;
         }
         [HttpGet]
+        [RedisCache]
         public async Task<ActionResult<PaginatedResult<ProductDto>>> GetAllProducts([FromQuery] ProductQueryParams queryParams)
         {
             var products = await productService.GetAllProductAsync(queryParams);
