@@ -2,7 +2,7 @@
 
 namespace E_Commerce.Web.Factory
 {
-    public class ApiResponseFactory
+    public static class ApiResponseFactory
     {
         public static IActionResult GenerateApiValidationResponse(ActionContext actionContext)
         {
