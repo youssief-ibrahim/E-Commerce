@@ -17,7 +17,7 @@ namespace E_Commerce.Presentation.Attributes
 
         public RedisCacheAttribute(int _duration = 5)
         {
-            this.duration = _duration;
+            duration = _duration;
         }
         public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {

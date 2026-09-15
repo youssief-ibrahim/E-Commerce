@@ -21,6 +21,9 @@ namespace E_Commerce.Services.MappingProfile
             if (string.IsNullOrEmpty(sourceMember))
                 return string.Empty;
 
+            if (Uri.TryCreate(sourceMember, UriKind.Absolute, out var uri))
+                return uri.ToString();
+
             var BaseUrl = cofig["URL:BaseURL"];
 
             return $"{BaseUrl}/{sourceMember.TrimStart('/')}";

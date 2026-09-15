@@ -12,7 +12,7 @@ namespace E_Commerce.Domain.Contracts
         Task<IReadOnlyList<T>> GetAllAsync();
         Task<IReadOnlyList<T>> GetAllWithSpecificationAsync(ISpecification<T, TKey> specification);
         Task<T?> GetByIdAsync(TKey id);
-        Task<T?> GetByIdAsync(ISpecification<T, TKey> specification);
+        Task<T?> GetByIdWithSpecificationAsync(ISpecification<T, TKey> specification);
         Task AddAsync(T entity);
         void Update(T entity);
         void Delete(T entity);

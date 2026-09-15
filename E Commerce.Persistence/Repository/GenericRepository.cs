@@ -30,7 +30,7 @@ namespace E_Commerce.Persistence.Repository
             return await query.AsNoTracking().ToListAsync();
         }
 
-        public async Task<T?> GetByIdAsync(ISpecification<T, TKey> specification)
+        public async Task<T?> GetByIdWithSpecificationAsync(ISpecification<T, TKey> specification)
         {
             var query = SpecificationEvaluator.CreateQuery(dbContext.Set<T>(), specification);
             return await query.FirstOrDefaultAsync();

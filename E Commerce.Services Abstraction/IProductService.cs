@@ -14,8 +14,8 @@ namespace E_Commerce.Services_Abstraction
         //Task<IReadOnlyList<ProductDto>> GetProductsAsync(ProductQueryParams queryParams);
         Task<PaginatedResult<ProductDto>> GetAllProductAsync(ProductQueryParams queryParams);
         Task<Result<ProductDto>> GetProductByIdAsync(int id);
-        //Task<Product> CreateProductAsync(Product product);
-        //Task UpdateProductAsync(Product product);
-        //Task DeleteProductAsync(int id);
+        Task<Result<ProductDto>> CreateProductAsync(CreateOrUpdateProductDto product);
+        Task<Result> UpdateProductAsync(int id,CreateOrUpdateProductDto product);
+        Task<Result> DeleteProductAsync(int id);
     }
 }

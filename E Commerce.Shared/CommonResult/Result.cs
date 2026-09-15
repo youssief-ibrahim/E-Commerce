@@ -30,6 +30,10 @@ namespace E_Commerce.Shared.CommonResult
         public static Result Ok() => new Result();
         public static Result Fail(Error error) => new Result(error);
         public static Result Fail(List<Error> errors) => new Result(errors);
+
+        public static implicit operator Result(Error value) => Fail(value);
+
+        public static implicit operator Result(List<Error> value) => Fail(value);
     }
 
     public class Result<T> : Result
@@ -58,5 +62,6 @@ namespace E_Commerce.Shared.CommonResult
         public static implicit operator Result<T>(Error value) => Fail(value);
 
         public static implicit operator Result<T>(List<Error> value) => Fail(value);
+
     }
 }
