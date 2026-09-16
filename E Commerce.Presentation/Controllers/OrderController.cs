@@ -47,5 +47,26 @@ namespace E_Commerce.Presentation.Controllers
             var order = await orderService.GetOrderByIdAndUserIdAsync(id, UserId!);
             return Ok(order);
         }
+        // Cancel Order
+        [HttpPost("{id}/cancel")]
+        [Authorize]
+        public async Task<ActionResult<OrderToReturnDto>> CancelOrder(Guid id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var result = await orderService.CancelOrderAsync(id, userId!);
+
+            return HandleResult(result);
+        }
+        // Update Order Status - Admin Only
+        [HttpPatch("{id}/status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<OrderToReturnDto>> UpdateOrderStatus( Guid id, OrderStatusDto status)
+        {
+            var result = await orderService.UpdateOrderStatusAsync(id, status);
+
+            return HandleResult(result);
+        }
+
     }
 }

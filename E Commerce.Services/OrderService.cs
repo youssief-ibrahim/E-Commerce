@@ -25,6 +25,31 @@ namespace E_Commerce.Services
             mapper = _mapper;
             basketRepository = _basketRepository;
         }
+
+        public async Task<Result<OrderToReturnDto>> CancelOrderAsync(Guid id, string userId)
+        {
+            var specification = new OrderSpecification(id, userId);
+
+            var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(specification);
+
+            if (order == null) return Error.NotFound( "Order Not Found", $"Order with id {id} was not found");
+            
+            if (order.OrderStatus != OrderStatus.Pending &&
+                order.OrderStatus != OrderStatus.PaymentReceived)
+                return Error.Failure("Order Cannot Be Cancelled","This order cannot be cancelled at its current status");
+            
+            order.OrderStatus = OrderStatus.Cancelled;
+
+            unitOfWork.GetRepository<Order, Guid>().Update(order);
+
+            var result = await unitOfWork.SaveChangeAsync();
+
+            if (result == 0)
+              return Error.Failure("Cancel Failed","An error occurred while cancelling the order");
+            
+            return mapper.Map<OrderToReturnDto>(order);
+        }
+
         public async Task<Result<OrderToReturnDto>> CreateOrderAsync(OrderDto orderDto, string userId)
         {
             var adress = mapper.Map<OrderAddress>(orderDto.Address);
@@ -90,6 +115,55 @@ namespace E_Commerce.Services
             var spacifc = new OrderSpecification(id,userId);
             var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(spacifc);
             return mapper.Map<OrderToReturnDto>(order);
+        }
+
+        public async Task<Result<OrderToReturnDto>> UpdateOrderStatusAsync(Guid id, OrderStatusDto statusdTO)
+        {
+            var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(new OrderSpecification(id.ToString()));
+
+            if (order == null)
+               return Error.NotFound("Order Not Found",$"Order with id {id} was not found");
+           
+            var newStatus = mapper.Map<OrderStatus>(statusdTO);
+
+            var currentStatus = order.OrderStatus;
+
+            if (currentStatus == newStatus)
+              return Error.Failure("Invalid Status", "The order already has this status");
+            
+            if (!IsValidStatusTransition(currentStatus, newStatus))
+                     return Error.Failure("Invalid Status Transition",$"Cannot change order status from {currentStatus} to {newStatus}");
+            
+            // 5. Update status
+            order.OrderStatus = newStatus;
+
+            unitOfWork.GetRepository<Order, Guid>().Update(order);
+
+            var result = await unitOfWork.SaveChangeAsync();
+
+            if (result == 0)
+            return Error.Failure( "Update Failed","An error occurred while updating the order status");
+        
+            return mapper.Map<OrderToReturnDto>(order);
+        }
+
+        private static bool IsValidStatusTransition(OrderStatus currentStatus,OrderStatus newStatus)
+        {
+            return currentStatus switch
+            {
+                OrderStatus.Pending =>
+                 newStatus == OrderStatus.PaymentReceived ||
+                 newStatus == OrderStatus.Cancelled,
+
+                OrderStatus.PaymentReceived =>
+                    newStatus == OrderStatus.Shipped ||
+                    newStatus == OrderStatus.Cancelled,
+
+                OrderStatus.Shipped =>
+                    newStatus == OrderStatus.Delivered,
+
+                _ => false
+            };
         }
     }
 }

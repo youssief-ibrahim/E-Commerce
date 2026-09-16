@@ -14,5 +14,7 @@ namespace E_Commerce.Services_Abstraction
         Task<IReadOnlyList<DeliveryMethodDto>> GetAllDeliveryMethodAsync();
         Task<IReadOnlyList<OrderToReturnDto>> GetAllOrdersAsync(string userId);
         Task<Result<OrderToReturnDto>> GetOrderByIdAndUserIdAsync(Guid id, string userId);
+        Task<Result<OrderToReturnDto>> CancelOrderAsync(Guid id, string userId);
+        Task<Result<OrderToReturnDto>> UpdateOrderStatusAsync(Guid id, OrderStatusDto status);
     }
 }

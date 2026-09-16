@@ -25,6 +25,9 @@ namespace E_Commerce.Services.MappingProfile
 
             CreateMap<DeliveryMethod,DeliveryMethodDto>();
 
+
+            CreateMap<OrderStatusDto, OrderStatus>();
+
         }
     }
 }
