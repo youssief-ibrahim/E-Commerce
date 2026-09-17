@@ -7,6 +7,7 @@ using AutoMapper;
 using E_Commerce.Domain.Contracts;
 using E_Commerce.Domain.Entities.OrdersModule;
 using E_Commerce.Domain.Entities.ProductModule;
+using E_Commerce.Services.Specifications;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.CommonResult;
 using E_Commerce.Shared.DTOS.BasketDTOS;
@@ -91,9 +92,36 @@ namespace E_Commerce.Services
             return mapper.Map<CartDto>(basket);
         }
 
-        public Task UpdateOrderPaymentSucceededAsync(string request, string stripeSignure)
+        public async Task UpdateOrderPaymentSucceededAsync(string request, string stripeSignure)
         {
-            throw new NotImplementedException();
+            var endpointSecret = config["EndpointSecret"];
+            var stripeEvent = EventUtility.ConstructEvent(request, stripeSignure, endpointSecret);
+
+            var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
+
+
+            if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded)
+            {
+                var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(new OrderwithPaymentIntentSpecefication(paymentIntent.Id));
+                order.OrderStatus = OrderStatus.PaymentReceived;
+                await unitOfWork.SaveChangeAsync();
+
+                // logic
+            }
+            else if (stripeEvent.Type == EventTypes.PaymentIntentPaymentFailed)
+            {
+
+                var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(new OrderwithPaymentIntentSpecefication(paymentIntent.Id));
+                order.OrderStatus = OrderStatus.PaymentFailed;
+                await unitOfWork.SaveChangeAsync();
+
+                // logic
+            }
+
+            else
+            {
+                Console.WriteLine("Unhandled event type: {0}", stripeEvent.Type);
+            }
         }
     }
 }

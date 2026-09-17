@@ -29,5 +29,15 @@ namespace E_Commerce.Presentation.Controllers
             var res = await paymentService.CreateOrUpdatePaymentIntentAsync(basketId);
             return HandleResult<CartDto>(res);
         }
+        [HttpPost("Weebhook")]
+        public async Task<IActionResult> Webhook()
+        {
+            var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
+            var stripeSignature = Request.Headers["Stripe-Signature"];
+
+            await paymentService.UpdateOrderPaymentSucceededAsync(json, stripeSignature!);
+
+            return new EmptyResult();
+        }
     }
 }
