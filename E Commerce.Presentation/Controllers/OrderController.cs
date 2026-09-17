@@ -59,7 +59,7 @@ namespace E_Commerce.Presentation.Controllers
             return HandleResult(result);
         }
         // Update Order Status - Admin Only
-        [HttpPatch("{id}/status")]
+        [HttpPost("{id}/status")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<OrderToReturnDto>> UpdateOrderStatus( Guid id, OrderStatusDto status)
         {

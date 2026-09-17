@@ -92,7 +92,7 @@ namespace E_Commerce.Services
             return mapper.Map<CartDto>(basket);
         }
 
-        public async Task UpdateOrderPaymentSucceededAsync(string request, string stripeSignure)
+        public async Task<Result> UpdateOrderPaymentSucceededAsync(string request, string stripeSignure)
         {
             var endpointSecret = config["EndpointSecret"];
             var stripeEvent = EventUtility.ConstructEvent(request, stripeSignure, endpointSecret);
@@ -103,8 +103,13 @@ namespace E_Commerce.Services
             if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded)
             {
                 var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(new OrderwithPaymentIntentSpecefication(paymentIntent.Id));
+                if(order == null)
+                   return Error.NotFound("Order not found for PaymentIntent ID: {0}", paymentIntent.Id);
+                    
+                
                 order.OrderStatus = OrderStatus.PaymentReceived;
                 await unitOfWork.SaveChangeAsync();
+                return Result.Ok();
 
                 // logic
             }
@@ -112,15 +117,19 @@ namespace E_Commerce.Services
             {
 
                 var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(new OrderwithPaymentIntentSpecefication(paymentIntent.Id));
+                if (order == null)
+                    return Error.NotFound("Order not found for PaymentIntent ID: {0}", paymentIntent.Id);
+
                 order.OrderStatus = OrderStatus.PaymentFailed;
                 await unitOfWork.SaveChangeAsync();
-
+                return Result.Ok(); 
                 // logic
             }
 
             else
             {
-                Console.WriteLine("Unhandled event type: {0}", stripeEvent.Type);
+                //Console.WriteLine("Unhandled event type: {0}", stripeEvent.Type);
+                return Error.Failure("Unhandled event type: {0}", stripeEvent.Type);
             }
         }
     }

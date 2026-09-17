@@ -35,9 +35,9 @@ namespace E_Commerce.Presentation.Controllers
             var json = await new StreamReader(HttpContext.Request.Body).ReadToEndAsync();
             var stripeSignature = Request.Headers["Stripe-Signature"];
 
-            await paymentService.UpdateOrderPaymentSucceededAsync(json, stripeSignature!);
+          var result=  await paymentService.UpdateOrderPaymentSucceededAsync(json, stripeSignature!);
 
-            return new EmptyResult();
+            return HandleResult(result);
         }
     }
 }
