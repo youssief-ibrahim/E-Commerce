@@ -59,6 +59,16 @@ namespace E_Commerce.Web
             builder.Services.AddScoped<ICacheRepository, CacheRepository>();
             builder.Services.AddScoped<ICacheService, CacheService>();
             builder.Services.AddScoped<IOrderService, OrderService>();
+            builder.Services.AddScoped<IPaymentService, PaymentService>();
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AngularDev", policy =>
+                    policy.WithOrigins("http://localhost:4200")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod());
+            });
+
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
             builder.Services.AddAuthentication(opt =>
@@ -98,7 +108,7 @@ namespace E_Commerce.Web
             app.UseHttpsRedirection();
 
             app.UseStaticFiles();
-
+            app.UseCors("AngularDev");
             app.UseAuthentication();
             app.UseAuthorization();
 

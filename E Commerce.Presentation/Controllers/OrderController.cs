@@ -34,18 +34,19 @@ namespace E_Commerce.Presentation.Controllers
         }
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult<IReadOnlyList<OrderToReturnDto>>> GetAllOrderByUserId(string email)
+        public async Task<ActionResult<IReadOnlyList<OrderToReturnDto>>> GetAllOrderByUserId()
         {
             var UserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var order = await orderService.GetAllOrdersAsync(UserId!);
             return Ok(order);
         }
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<ActionResult<OrderToReturnDto>> GetOrderByIdAndUserId(Guid id)
         {
             var UserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var order = await orderService.GetOrderByIdAndUserIdAsync(id, UserId!);
-            return Ok(order);
+            return HandleResult(order);
         }
         // Cancel Order
         [HttpPost("{id}/cancel")]

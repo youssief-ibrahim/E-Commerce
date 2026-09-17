@@ -16,5 +16,6 @@ namespace E_Commerce.Services_Abstraction
         Task<Result<OrderToReturnDto>> GetOrderByIdAndUserIdAsync(Guid id, string userId);
         Task<Result<OrderToReturnDto>> CancelOrderAsync(Guid id, string userId);
         Task<Result<OrderToReturnDto>> UpdateOrderStatusAsync(Guid id, OrderStatusDto status);
+        Task<Result> UpdatePaymentStatusByIntentIdAsync(string paymentIntentId, bool isSucceeded);
     }
 }

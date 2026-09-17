@@ -12,10 +12,19 @@ namespace E_Commerce.Services.Specifications
     {
         public OrderSpecification(string userId) : base(e=>e.UserId== userId)
         {
-            AddInclude(e => e.DeliveryMethod);
-            AddInclude(e=>e.Items);
+            AddIncludes();
+            AddOrderDec(e => e.OrderDate);
+        }
+        public OrderSpecification(Guid id) : base(e => e.Id == id)
+        {
+            AddIncludes();
         }
         public OrderSpecification(Guid id,string userId) : base(e =>e.Id==id && e.UserId == userId)
+        {
+            AddIncludes();
+        }
+
+        private void AddIncludes()
         {
             AddInclude(e => e.DeliveryMethod);
             AddInclude(e => e.Items);

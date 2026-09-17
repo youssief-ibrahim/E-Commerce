@@ -11,7 +11,8 @@ namespace E_Commerce.Services.Specifications
     {
         public OrderwithPaymentIntentSpecefication(string paymentIntentId):base(e=>e.PaymentIntentId==paymentIntentId)
         {
-            
+            AddInclude(e => e.DeliveryMethod);
+            AddInclude(e => e.Items);
         }
     }
 }

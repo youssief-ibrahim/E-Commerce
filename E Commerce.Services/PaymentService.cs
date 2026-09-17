@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AutoMapper;
+﻿using AutoMapper;
 using E_Commerce.Domain.Contracts;
 using E_Commerce.Domain.Entities.OrdersModule;
-using E_Commerce.Domain.Entities.ProductModule;
-using E_Commerce.Services.Specifications;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.CommonResult;
 using E_Commerce.Shared.DTOS.BasketDTOS;
@@ -23,13 +16,22 @@ namespace E_Commerce.Services
         private readonly IUnitOfWork unitOfWork;
         private readonly IMapper mapper;
         private readonly IConfiguration config;
-        public PaymentService(IBasketRepository _basketRepository, IUnitOfWork _unitOfWork, IMapper _mapper, IConfiguration _config)
+        private readonly IOrderService orderService;
+
+        public PaymentService(
+            IBasketRepository _basketRepository,
+            IUnitOfWork _unitOfWork,
+            IMapper _mapper,
+            IConfiguration _config,
+            IOrderService _orderService)
         {
             basketRepository = _basketRepository;
             unitOfWork = _unitOfWork;
             mapper = _mapper;
             config = _config;
+            orderService = _orderService;
         }
+
         public async Task<Result<CartDto>> CreateOrUpdatePaymentIntentAsync(string basketId)
         {
             StripeConfiguration.ApiKey = config["Stripe:SecretKey"];
@@ -37,10 +39,8 @@ namespace E_Commerce.Services
             var basket = await basketRepository.GetBasketAsync(basketId);
             if (basket == null) return Error.NotFound("Basket Not Found");
 
-
             if (basket.Items == null || !basket.Items.Any())
                 return Error.Validation("Basket is empty", "Cannot create payment intent for an empty basket.");
-
 
             if (basket.DeliveryMethodId == null)
                 return Error.Validation("Please Select Delivery Method");
@@ -54,16 +54,24 @@ namespace E_Commerce.Services
 
             foreach (var item in basket.Items)
             {
+                if (item.Quantity <= 0)
+                    return Error.Validation("Invalid quantity", $"Invalid quantity for product id {item.Id}");
+
                 var product = await unitOfWork.GetRepository<Product, int>().GetByIdAsync(item.Id);
                 if (product is null) return Error.NotFound("Product not found", $"Product with id {item.Id} not found");
+
+                if (product.Quantity < item.Quantity)
+                    return Error.Validation("Insufficient stock", $"Product '{product.Name}' has only {product.Quantity} item(s) in stock");
 
                 item.ProductName = product.Name;
                 item.PictureUrl = product.PictureUrl;
                 item.Price = product.Price;
             }
+
             var shippingPrice = deliveryMethod.Price;
+            basket.ShippingPrice = shippingPrice;
             var totalAmount = basket.Items.Sum(i => i.Price * i.Quantity) + shippingPrice;
-            var amount = (long)(totalAmount * 100); // Convert to cents
+            var amount = (long)(totalAmount * 100);
 
             var paymentIntentService = new PaymentIntentService();
             if (string.IsNullOrEmpty(basket.PaymentIntentId))
@@ -71,7 +79,7 @@ namespace E_Commerce.Services
                 var Options = new PaymentIntentCreateOptions()
                 {
                     Amount = amount,
-                    Currency = "USD",
+                    Currency = "usd",
                     PaymentMethodTypes = ["card"],
                 };
                 var paymentIntent = await paymentIntentService.CreateAsync(Options);
@@ -84,9 +92,10 @@ namespace E_Commerce.Services
                 {
                     Amount = amount,
                 };
-                await paymentIntentService.UpdateAsync(basket.PaymentIntentId, Options);
+                var paymentIntent = await paymentIntentService.UpdateAsync(basket.PaymentIntentId, Options);
+                basket.ClientSecret = paymentIntent.ClientSecret;
             }
-            
+
             await basketRepository.CreateOrUpdateBasketAsync(basket);
 
             return mapper.Map<CartDto>(basket);
@@ -94,43 +103,31 @@ namespace E_Commerce.Services
 
         public async Task<Result> UpdateOrderPaymentSucceededAsync(string request, string stripeSignure)
         {
-            var endpointSecret = config["EndpointSecret"];
-            var stripeEvent = EventUtility.ConstructEvent(request, stripeSignure, endpointSecret);
+            var endpointSecret = config["Stripe:EndpointSecret"];
+            if (string.IsNullOrWhiteSpace(endpointSecret))
+                return Error.Failure("Webhook secret missing", "Stripe webhook secret is not configured");
+
+            Event stripeEvent;
+            try
+            {
+                stripeEvent = EventUtility.ConstructEvent(request, stripeSignure, endpointSecret);
+            }
+            catch (StripeException ex)
+            {
+                return Error.Validation("Invalid Stripe signature", ex.Message);
+            }
 
             var paymentIntent = stripeEvent.Data.Object as PaymentIntent;
-
-
-            if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded)
-            {
-                var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(new OrderwithPaymentIntentSpecefication(paymentIntent.Id));
-                if(order == null)
-                   return Error.NotFound("Order not found for PaymentIntent ID: {0}", paymentIntent.Id);
-                    
-                
-                order.OrderStatus = OrderStatus.PaymentReceived;
-                await unitOfWork.SaveChangeAsync();
+            if (paymentIntent is null)
                 return Result.Ok();
 
-                // logic
-            }
-            else if (stripeEvent.Type == EventTypes.PaymentIntentPaymentFailed)
-            {
+            if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded)
+                return await orderService.UpdatePaymentStatusByIntentIdAsync(paymentIntent.Id, true);
 
-                var order = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(new OrderwithPaymentIntentSpecefication(paymentIntent.Id));
-                if (order == null)
-                    return Error.NotFound("Order not found for PaymentIntent ID: {0}", paymentIntent.Id);
+            if (stripeEvent.Type == EventTypes.PaymentIntentPaymentFailed)
+                return await orderService.UpdatePaymentStatusByIntentIdAsync(paymentIntent.Id, false);
 
-                order.OrderStatus = OrderStatus.PaymentFailed;
-                await unitOfWork.SaveChangeAsync();
-                return Result.Ok(); 
-                // logic
-            }
-
-            else
-            {
-                //Console.WriteLine("Unhandled event type: {0}", stripeEvent.Type);
-                return Error.Failure("Unhandled event type: {0}", stripeEvent.Type);
-            }
+            return Result.Ok();
         }
     }
 }
