@@ -60,6 +60,17 @@ namespace E_Commerce.Services
             var basket =await basketRepository.GetBasketAsync(orderDto.BasketId);
             if (basket == null) return Error.NotFound("Basket not found", $"Basket with id {orderDto.BasketId} not found");
 
+            if (basket.PaymentIntentId is null) return Error.Validation("Payment Intent Id is null", "Cannot create order without a valid payment intent id");
+            var spec = new OrderwithPaymentIntentSpecefication(basket.PaymentIntentId);
+
+            var existingOrder = await unitOfWork.GetRepository<Order, Guid>().GetByIdWithSpecificationAsync(spec);
+            if (existingOrder is not null)
+            {
+                unitOfWork.GetRepository<Order, Guid>().Delete(existingOrder);
+                var Resultsave = await unitOfWork.SaveChangeAsync();
+                if (Resultsave == 0) return Error.Failure("Failed to delete existing order", "An error occurred while deleting the existing order");
+            }
+
             List<OrderItem> orderItems = new List<OrderItem>();
             foreach (var item in basket.Items)
             {
@@ -88,6 +99,7 @@ namespace E_Commerce.Services
                Address = adress,
                Items = orderItems,
                Subtotal = subTotal,
+               PaymentIntentId = basket.PaymentIntentId,
             };
 
             await unitOfWork.GetRepository<Order, Guid>().AddAsync(order);
