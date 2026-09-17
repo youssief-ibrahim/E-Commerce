@@ -15,6 +15,7 @@ namespace E_Commerce.Domain.Entities.OrdersModule
         public DateTime OrderDate { get; set; } = DateTime.Now.Date;
         public OrderAddress Address { get; set; } = null!;
         public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
+        public string? PaymentIntentId { get; set; }
         public decimal Subtotal { get; set; }
         public decimal GetTotal() => Subtotal + DeliveryMethod.Price;
 
