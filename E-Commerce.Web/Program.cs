@@ -18,6 +18,7 @@ using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using Microsoft.OpenApi.Models;
 using Hangfire;
+using E_Commerce.Web.Jobs;
 
 namespace E_Commerce.Web
 {
@@ -74,14 +75,23 @@ namespace E_Commerce.Web
                 config.UseRecommendedSerializerSettings();
                 config.SetDataCompatibilityLevel(CompatibilityLevel.Version_170);
                 config.UseSimpleAssemblyNameTypeSerializer()
-                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
+                .UseSqlServerStorage(
+                    builder.Configuration.GetConnectionString("DefaultConnection"),
+                    new Hangfire.SqlServer.SqlServerStorageOptions
+                {
+                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                    SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                    QueuePollInterval = TimeSpan.Zero,
+                    UseRecommendedIsolationLevel = true, // Concurrency
+                    DisableGlobalLocks = true
+                });
             });
             builder.Services.AddHangfireServer();
 
             builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
-            var jwtSecret = builder.Configuration["JWT:SecretKey"] ?? builder.Configuration["Jwt:SecretKey"];
+            var jwtSecret = builder.Configuration["Jwt:SecretKey"];
             builder.Services.AddAuthentication(opt =>
             {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -98,8 +108,8 @@ namespace E_Commerce.Web
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero,
-                    ValidIssuer = builder.Configuration["JWT:Issuer"] ?? builder.Configuration["Jwt:Issuer"],
-                    ValidAudience = builder.Configuration["JWT:Audience"] ?? builder.Configuration["Jwt:Audience"],
+                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                    ValidAudience = builder.Configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret!))
                 };
             });
@@ -166,6 +176,13 @@ namespace E_Commerce.Web
 
             app.MapControllers();
             app.MapHangfireDashboard();
+
+           // Register recurring Hangfire job to clean up expired refresh tokens every hour
+
+            RecurringJob.AddOrUpdate<RefreshTokenCleanupJob>(
+                recurringJobId: "cleanup-expired-refresh-tokens",
+                methodCall: job => job.ExecuteAsync(),
+                cronExpression: Cron.Hourly(1));
 
             app.Run();
         }

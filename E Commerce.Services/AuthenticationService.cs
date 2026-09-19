@@ -153,8 +153,7 @@ namespace E_Commerce.Services
             {
                 Id = Guid.NewGuid(),
                 TokenHash = HashToken(plainToken),
-                //ExpiresOn = DateTime.Now.AddDays(GetRefreshTokenExpirationDays()),
-                ExpiresOn = DateTime.Now.AddMinutes(GetRefreshTokenExpirationDays()),
+                ExpiresOn = DateTime.Now.AddDays(GetRefreshTokenExpirationDays()),
                 CreatedOn = DateTime.Now,
                 UserId = userId
             };
@@ -206,13 +205,13 @@ namespace E_Commerce.Services
         private int GetAccessTokenExpirationMinutes()
         {
             var value = config["Jwt:AccessTokenExpirationMinutes"];
-            return int.TryParse(value, out var minutes) && minutes > 0 ? minutes : 2;  //15
+            return int.TryParse(value, out var minutes) && minutes > 0 ? minutes : 15;  
         }
 
         private int GetRefreshTokenExpirationDays()
         {
             var value = config["Jwt:RefreshTokenExpirationDays"];
-            return int.TryParse(value, out var days) && days > 0 ? days : 5;    //14
+            return int.TryParse(value, out var days) && days > 0 ? days : 14;   
         }
 
         private static string HashToken(string token)
