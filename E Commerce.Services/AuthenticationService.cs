@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
-using AutoMapper;
+using E_Commerce.Domain.Contracts;
 using E_Commerce.Domain.Entities.IdentityModule;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.CommonResult;
@@ -21,14 +17,19 @@ namespace E_Commerce.Services
     {
         private readonly UserManager<ApplicationUser> userManager;
         private readonly IConfiguration config;
-        private readonly IMapper mapper;
+        private readonly IRefreshTokenRepository refreshTokenRepository;
 
-        public AuthenticationService(UserManager<ApplicationUser> userManager, IConfiguration config, IMapper mapper)
+        public AuthenticationService(
+            UserManager<ApplicationUser> userManager,
+            IConfiguration config,
+            IRefreshTokenRepository refreshTokenRepository)
         {
             this.userManager = userManager;
             this.config = config;
-            this.mapper = mapper;
+            this.refreshTokenRepository = refreshTokenRepository;
+         
         }
+
         public async Task<bool> CheckEmailAsync(string email)
         {
             var user = await userManager.FindByEmailAsync(email);
@@ -42,8 +43,9 @@ namespace E_Commerce.Services
             {
                 return Error.NotFound("User Not Found");
             }
-            return new UserDto(user.Email!, user.Name, await GenerateTokenAsync(user));
+            return new UserDto(user.Email!, user.Name, await GenerateAccessTokenAsync(user));
         }
+
         public async Task<Result<UserDto>> LoginAsync(LoginDto LoginDTO)
         {
             var user = await userManager.FindByEmailAsync(LoginDTO.email);
@@ -56,8 +58,7 @@ namespace E_Commerce.Services
             {
                 return Error.InvalidCrendentials("User.InvalidCrendentials");
             }
-            var token = await GenerateTokenAsync(user);
-            return new UserDto(user.Email!, user.Name, token);
+            return await GenerateAuthResultAsync(user);
         }
 
         public async Task<Result<UserDto>> RegisterAsync(RegisterDto RegisterDTO)
@@ -72,13 +73,104 @@ namespace E_Commerce.Services
             var IdentityResult = await userManager.CreateAsync(user, RegisterDTO.password);
             if (IdentityResult.Succeeded)
             {
-                var token = await GenerateTokenAsync(user);
-                return new UserDto(user.Email!, user.Name, token);
+                return await GenerateAuthResultAsync(user);
             }
             return IdentityResult.Errors.Select(e => Error.Validation(e.Code, e.Description)).ToList();
         }
 
-        private async Task<string> GenerateTokenAsync(ApplicationUser user)
+        public async Task<Result<UserDto>> RefreshTokenAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return Error.Validation("Refresh token is required");
+
+            var tokenHash = HashToken(refreshToken);
+         
+
+            var storedToken = await refreshTokenRepository.GetByTokenHashAsync(tokenHash);
+            if (storedToken is null)
+                return Error.Unauthorized("Invalid refresh token", "The refresh token is invalid");
+
+            if (storedToken.IsExpired)
+                return Error.Unauthorized("Invalid refresh token", "The refresh token is expired");
+
+            if (storedToken.RevokedOn is not null)
+                return await HandleRefreshTokenReuseAsync(storedToken.UserId);
+
+            var user = await userManager.FindByIdAsync(storedToken.UserId);
+            if (user is null)
+                return Error.NotFound("User Not Found");
+
+            var (newRefreshToken, plainToken) = CreateRefreshToken(user.Id);
+            storedToken.RevokedOn = DateTime.Now;
+            storedToken.ReplacedByTokenHash = newRefreshToken.TokenHash;
+
+            refreshTokenRepository.Update(storedToken);
+            await refreshTokenRepository.AddAsync(newRefreshToken);
+            await refreshTokenRepository.SaveChangesAsync();
+
+          
+
+            var accessToken = await GenerateAccessTokenAsync(user);
+            return new UserDto(user.Email!, user.Name, accessToken, plainToken, newRefreshToken.ExpiresOn);
+        }
+
+        public async Task<Result> RevokeTokenAsync(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return Error.Validation("Refresh token is required");
+
+            var tokenHash = HashToken(refreshToken);
+            var storedToken = await refreshTokenRepository.GetByTokenHashAsync(tokenHash);
+            if (storedToken is null || !storedToken.IsActive)
+                return Error.Unauthorized("Invalid refresh token", "The refresh token is invalid or already revoked");
+
+            storedToken.RevokedOn = DateTime.Now;
+            refreshTokenRepository.Update(storedToken);
+            await refreshTokenRepository.SaveChangesAsync();
+            return Result.Ok();
+        }
+
+        public async Task<Result> RevokeAllTokensAsync(string userId)
+        {
+            await refreshTokenRepository.RevokeAllActiveForUserAsync(userId);
+            await refreshTokenRepository.SaveChangesAsync();
+            return Result.Ok();
+        }
+
+        private async Task<UserDto> GenerateAuthResultAsync(ApplicationUser user)
+        {
+            var accessToken = await GenerateAccessTokenAsync(user);
+            var (refreshToken, plainToken) = CreateRefreshToken(user.Id);
+            await refreshTokenRepository.AddAsync(refreshToken);
+            await refreshTokenRepository.SaveChangesAsync();
+            return new UserDto(user.Email!, user.Name, accessToken, plainToken, refreshToken.ExpiresOn);
+        }
+
+        private (RefreshToken Token, string PlainToken) CreateRefreshToken(string userId)
+        {
+            var plainToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+            var token = new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                TokenHash = HashToken(plainToken),
+                //ExpiresOn = DateTime.Now.AddDays(GetRefreshTokenExpirationDays()),
+                ExpiresOn = DateTime.Now.AddMinutes(GetRefreshTokenExpirationDays()),
+                CreatedOn = DateTime.Now,
+                UserId = userId
+            };
+            return (token, plainToken);
+        }
+
+        private async Task<Result<UserDto>> HandleRefreshTokenReuseAsync(string userId)
+        {
+            await refreshTokenRepository.RevokeAllActiveForUserAsync(userId);
+            await refreshTokenRepository.SaveChangesAsync();
+            return Error.Unauthorized("Refresh token reuse detected", "This refresh token is no longer valid. Please login again");
+        }
+
+     
+
+        private async Task<string> GenerateAccessTokenAsync(ApplicationUser user)
         {
             var claims = new List<Claim>
             {
@@ -96,19 +188,37 @@ namespace E_Commerce.Services
             var secretKey = config["Jwt:SecretKey"];
             if (string.IsNullOrEmpty(secretKey))
             {
-                throw new InvalidOperationException("JWT SecretKey is not configured in appsettings.");
+                throw new InvalidOperationException("JWT SecretKey is not configured in user secrets or appsettings.");
             }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             var token = new JwtSecurityToken(
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(2),
+                expires: DateTime.Now.AddMinutes(GetAccessTokenExpirationMinutes()),
                 signingCredentials: creds,
                 issuer: config["Jwt:Issuer"],
                 audience: config["Jwt:Audience"]
             );
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private int GetAccessTokenExpirationMinutes()
+        {
+            var value = config["Jwt:AccessTokenExpirationMinutes"];
+            return int.TryParse(value, out var minutes) && minutes > 0 ? minutes : 2;  //15
+        }
+
+        private int GetRefreshTokenExpirationDays()
+        {
+            var value = config["Jwt:RefreshTokenExpirationDays"];
+            return int.TryParse(value, out var days) && days > 0 ? days : 5;    //14
+        }
+
+        private static string HashToken(string token)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+            return Convert.ToHexString(bytes);
         }
     }
 }

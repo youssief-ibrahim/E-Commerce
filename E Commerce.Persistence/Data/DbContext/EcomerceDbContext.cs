@@ -25,7 +25,20 @@ namespace E_Commerce.Persistence.Data.DbContext
             builder.Entity<ApplicationUser>().ToTable("Users");
             builder.Entity<IdentityRole>().ToTable("Roles");
             builder.Entity<IdentityUserRole<string>>().ToTable("UserRoles");
+
+            builder.Entity<RefreshToken>(entity =>
+            {
+                entity.ToTable("RefreshTokens");
+                entity.HasIndex(token => token.TokenHash).IsUnique();
+                entity.HasIndex(token => token.ExpiresOn);
+                entity.Property(token => token.TokenHash).IsRequired().HasMaxLength(128);
+                entity.HasOne(token => token.User)
+                    .WithMany(user => user.RefreshTokens)
+                    .HasForeignKey(token => token.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
         }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }

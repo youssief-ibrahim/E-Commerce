@@ -14,6 +14,7 @@ namespace E_Commerce.Domain.Entities.IdentityModule
 
         #region RelationShip
         public ICollection<Order> Orders { get; set; } = [];
+        public ICollection<RefreshToken> RefreshTokens { get; set; } = [];
         #endregion
     }
 }

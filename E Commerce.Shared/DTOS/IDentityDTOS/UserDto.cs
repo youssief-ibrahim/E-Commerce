@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace E_Commerce.Shared.DTOS.IDentityDTOS
+﻿namespace E_Commerce.Shared.DTOS.IDentityDTOS
 {
     public record UserDto(
        string email,
        string DisplayName,
-       string token);
+       string token,
+       string? refreshToken = null,
+       DateTime? refreshTokenExpiration = null);
 }

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Security.Claims;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.DTOS.IDentityDTOS;
 using Microsoft.AspNetCore.Authorization;
@@ -19,24 +14,51 @@ namespace E_Commerce.Presentation.Controllers
         {
             this.authenticationService = authenticationService;
         }
+
         [HttpPost("login")]
         public async Task<ActionResult<UserDto>> Login(LoginDto loginDTO)
         {
             var result = await authenticationService.LoginAsync(loginDTO);
             return HandleResult<UserDto>(result);
         }
+
         [HttpPost("register")]
         public async Task<ActionResult<UserDto>> Register(RegisterDto registerDTO)
         {
             var result = await authenticationService.RegisterAsync(registerDTO);
             return HandleResult<UserDto>(result);
         }
+
+        [HttpPost("refresh")]
+        public async Task<ActionResult<UserDto>> Refresh(RefreshTokenRequestDto request)
+        {
+            var result = await authenticationService.RefreshTokenAsync(request.RefreshToken);
+            return HandleResult(result);
+        }
+
+        [HttpPost("revoke")]
+        public async Task<IActionResult> Revoke(RefreshTokenRequestDto request)
+        {
+            var result = await authenticationService.RevokeTokenAsync(request.RefreshToken);
+            return HandleResult(result);
+        }
+
+        [Authorize]
+        [HttpPost("revoke-all")]
+        public async Task<IActionResult> RevokeAll()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var result = await authenticationService.RevokeAllTokensAsync(userId!);
+            return HandleResult(result);
+        }
+
         [HttpGet("check-email")]
         public async Task<ActionResult<bool>> CheckEmail(string email)
         {
             var result = await authenticationService.CheckEmailAsync(email);
             return Ok(result);
         }
+
         [Authorize]
         [HttpGet("get-user-by-email")]
         public async Task<ActionResult<UserDto>> GetUserByEmail()
@@ -45,5 +67,6 @@ namespace E_Commerce.Presentation.Controllers
             var result = await authenticationService.GetUserByEmailAsync(email!);
             return HandleResult(result);
         }
+
     }
 }

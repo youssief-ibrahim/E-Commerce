@@ -11,12 +11,13 @@ using E_Commerce.Web.CustomMiddleWare;
 using E_Commerce.Web.Extentions;
 using E_Commerce.Web.Factory;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
+using Microsoft.OpenApi.Models;
+using Hangfire;
 
 namespace E_Commerce.Web
 {
@@ -31,7 +32,6 @@ namespace E_Commerce.Web
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
             builder.Services.AddDbContext<EcomerceDbContext>(option =>
             {
                 option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -68,13 +68,26 @@ namespace E_Commerce.Web
                         .AllowAnyHeader()
                         .AllowAnyMethod());
             });
+            // hangfire configuration
+            builder.Services.AddHangfire(config =>
+            {
+                config.UseRecommendedSerializerSettings();
+                config.SetDataCompatibilityLevel(CompatibilityLevel.Version_170);
+                config.UseSimpleAssemblyNameTypeSerializer()
+                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"));
+            });
+            builder.Services.AddHangfireServer();
 
+            builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
+            var jwtSecret = builder.Configuration["JWT:SecretKey"] ?? builder.Configuration["Jwt:SecretKey"];
             builder.Services.AddAuthentication(opt =>
             {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                opt.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+
             }).AddJwtBearer(opt =>
             {
                 opt.SaveToken = true;
@@ -84,11 +97,50 @@ namespace E_Commerce.Web
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
-                    ValidIssuer = builder.Configuration["JWT:Issuer"],
-                    ValidAudience = builder.Configuration["JWT:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:SecretKey"]!))
+                    ClockSkew = TimeSpan.Zero,
+                    ValidIssuer = builder.Configuration["JWT:Issuer"] ?? builder.Configuration["Jwt:Issuer"],
+                    ValidAudience = builder.Configuration["JWT:Audience"] ?? builder.Configuration["Jwt:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret!))
                 };
             });
+
+            builder.Services.AddSwaggerGen(swagger =>
+            {
+                //This is to generate the Default UI of Swagger Documentation
+                swagger.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Version = "v1",
+                    Title = "ECommerce PlatForm",
+                    Description = "Api for Restaurant"
+                });
+                
+                // To Enable authorization using Swagger (JWT)
+                swagger.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Enter 'Bearer' [space] and then your valid token in the tex"
+                });
+
+                swagger.AddSecurityRequirement(new OpenApiSecurityRequirement
+                 {
+                     {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                             {
+                                  Type = ReferenceType.SecurityScheme,
+                                  Id = "Bearer"
+                            }
+                         },
+                         new string[] {}
+                     }
+                });
+            });
+
             #endregion
 
             var app = builder.Build();
@@ -112,8 +164,8 @@ namespace E_Commerce.Web
             app.UseAuthentication();
             app.UseAuthorization();
 
-
             app.MapControllers();
+            app.MapHangfireDashboard();
 
             app.Run();
         }
