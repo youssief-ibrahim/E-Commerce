@@ -20,19 +20,21 @@ namespace E_Commerce.Services
         private readonly UserManager<ApplicationUser> userManager;
         private readonly IConfiguration config;
         private readonly IEmailSender emailSender;
+        private readonly IUserService userService;
         private readonly IRefreshTokenRepository refreshTokenRepository;
 
         public AuthenticationService(
             UserManager<ApplicationUser> userManager,
            IEmailSender _emailSender,
             IConfiguration config,
-            IRefreshTokenRepository refreshTokenRepository)
+            IRefreshTokenRepository refreshTokenRepository,
+            IUserService _userService)
         {
             this.userManager = userManager;
             emailSender = _emailSender;
             this.config = config;
             this.refreshTokenRepository = refreshTokenRepository;
-         
+            userService = _userService;
         }
 
         public async Task<bool> CheckEmailAsync(string email)
@@ -85,12 +87,15 @@ namespace E_Commerce.Services
                 await userManager.AddToRoleAsync(user, "User");
                 var token=await userManager.GenerateEmailConfirmationTokenAsync(user);
 
-                var confirmationLink = $"{RegisterDTO.WebLink}?email={user.Email}&token={Uri.EscapeDataString(token)}";
+                //var confirmationLink = $"{RegisterDTO.WebLink}?email={user.Email}&token={Uri.EscapeDataString(token)}";
+
+               var otp = await userService.GenerateOtpAsync(user.Email!);
 
                 var subject = "Confirm your email";
                 var message = $"<p>Dear {user.UserName},</p>" +
-                              $"<p>Thank you for registering. Please click the link below to confirm your email address:</p>" +
-                              $"<p><a href='{confirmationLink}'>Confirm Email</a></p>";
+                              $"<p>Your email confirmation code is:</p>" +
+                              $"<h1>{otp}</h1>" +
+                              $"<p>This code will expire in 2 minutes.</p>";
 
                 await emailSender.SendEmailAsync(RegisterDTO.email, subject, message);
 
@@ -105,7 +110,7 @@ namespace E_Commerce.Services
                 return Error.Validation("Refresh token is required");
 
             var tokenHash = HashToken(refreshToken);
-         
+
 
             var storedToken = await refreshTokenRepository.GetByTokenHashAsync(tokenHash);
             if (storedToken is null)
@@ -121,15 +126,21 @@ namespace E_Commerce.Services
             if (user is null)
                 return Error.NotFound("User Not Found");
 
+            user.TokenVersion++;
+
             var (newRefreshToken, plainToken) = CreateRefreshToken(user.Id);
             storedToken.RevokedOn = DateTime.Now;
             storedToken.ReplacedByTokenHash = newRefreshToken.TokenHash;
 
             refreshTokenRepository.Update(storedToken);
             await refreshTokenRepository.AddAsync(newRefreshToken);
-            await refreshTokenRepository.SaveChangesAsync();
 
-          
+            var updateResult = await userManager.UpdateAsync(user);
+
+            if (!updateResult.Succeeded)
+                return Error.Failure("User update failed");
+
+            await refreshTokenRepository.SaveChangesAsync();
 
             var accessToken = await GenerateAccessTokenAsync(user);
             return new UserDto(user.Email!, user.Name, accessToken, plainToken, newRefreshToken.ExpiresOn);
@@ -197,7 +208,8 @@ namespace E_Commerce.Services
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email!),
-                new Claim(JwtRegisteredClaimNames.Name, user.Name!)
+                new Claim(JwtRegisteredClaimNames.Name, user.Name!),
+                new Claim("TokenVersion", user.TokenVersion.ToString())
             };
             var roles = await userManager.GetRolesAsync(user);
             foreach (var role in roles)
@@ -240,6 +252,5 @@ namespace E_Commerce.Services
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
             return Convert.ToHexString(bytes);
         }
-
     }
 }

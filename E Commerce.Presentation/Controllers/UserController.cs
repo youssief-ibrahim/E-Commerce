@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.DTOS.IDentityDTOS;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace E_Commerce.Presentation.Controllers
@@ -31,8 +33,15 @@ namespace E_Commerce.Presentation.Controllers
         [HttpPost("ConfirmEmail")]
         public async Task<IActionResult> ConfirmEmail(ConfirmEmailDto confirmEmailDto)
         {
-            var res = await userService.ConfirmEmalAsync(confirmEmailDto);
+            var res = await userService.ConfirmEmailAsync(confirmEmailDto);
             return HandleResult(res);
         }
+        [HttpPost("ResendOtp")]
+        public async Task<IActionResult> ResendOtp(string email)
+        {
+            var res = await userService.ResendOtpAsync(email);
+            return HandleResult(res);
+        }
+
     }
 }

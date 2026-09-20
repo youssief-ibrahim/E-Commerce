@@ -2,35 +2,48 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Text;
+using E_Commerce.Domain.Contracts;
 using E_Commerce.Domain.Entities.IdentityModule;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.CommonResult;
 using E_Commerce.Shared.DTOS.IDentityDTOS;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace E_Commerce.Services
 {
     public class UserService : IUserService
     {
         private readonly IEmailSender emailSender;
+        private readonly ICacheRepository cacheRepository;
         private readonly UserManager<ApplicationUser> userManager;
 
-        public UserService(IEmailSender _emailSender, UserManager<ApplicationUser> _userManager)
+        public UserService(IEmailSender _emailSender, UserManager<ApplicationUser> _userManager, ICacheRepository _cacheRepository)
         {
             emailSender = _emailSender;
             userManager = _userManager;
+            cacheRepository = _cacheRepository;
         }
 
-        public async Task<Result> ConfirmEmalAsync(ConfirmEmailDto confirmDto)
+        public async Task<Result> ConfirmEmailAsync(ConfirmEmailDto confirmDto)
         {
             var user = await userManager.FindByEmailAsync(confirmDto.Email);
             if (user == null) return Error.NotFound("User not found.");
 
-            var decodedToken = Uri.UnescapeDataString(confirmDto.Token);
+            if (user.EmailConfirmed)
+                return Result.Ok("Email is already confirmed.");
 
-            var result = await userManager.ConfirmEmailAsync(user, decodedToken);
+            var IsValidOpt= await VerifyOtpAsync(confirmDto);
+
+            if(!IsValidOpt) return Error.Validation("Invalid Or Expired OTP.");
+
+            user.EmailConfirmed = true;
+
+            var result = await userManager.UpdateAsync(user);
+
             if (!result.Succeeded)
             {
                 var errors = result.Errors.Select(e => Error.Validation(e.Code, e.Description)).ToList();
@@ -64,6 +77,44 @@ namespace E_Commerce.Services
             return Result.Ok($"Password reset link has been sent to {forgetPasswordDto.Email}");
         }
 
+        public async Task<string> GenerateOtpAsync(string email)
+        {
+            //var otp = new Random().Next(100000, 999999).ToString();
+            var otp= RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
+            string kry= $"EmailOtp:{email}";
+            await cacheRepository.SetAsync(
+             kry,
+             otp,
+             TimeSpan.FromMinutes(2));
+
+            return otp;
+        }
+
+        public async Task<Result> ResendOtpAsync(string email)
+        {
+            var user =await userManager.FindByEmailAsync(email);
+            if (user == null)
+                return Error.NotFound("User not found.");
+            // 2. Check if email is already confirmed
+            if (user.EmailConfirmed)
+                return Error.Validation("Email is already confirmed.");
+
+            var otp = await GenerateOtpAsync(user.Email!);
+
+            var subject = "Confirm your email";
+
+            var message =
+                $"<p>Dear {user.UserName},</p>" +
+                $"<p>Your new email confirmation code is:</p>" +
+                $"<h1>{otp}</h1>" +
+                $"<p>This code will expire in 2 minutes.</p>";
+
+            
+            await emailSender.SendEmailAsync(user.Email!,subject,message);
+
+            return Result.Ok("A new OTP has been sent to your email.");
+        }
+
         public async Task<Result> ResetPasswordAsync(ResetPasswordDto resetPasswordDto)
         {
             var user = await userManager.FindByEmailAsync(resetPasswordDto.Email);
@@ -81,18 +132,16 @@ namespace E_Commerce.Services
             return Result.Ok("Password has been reset successfully.");
         }
 
-        public async Task<bool> VerifyOtpAsync(VerifyOtpDto verifyOtpDto)
+        private async Task<bool> VerifyOtpAsync(ConfirmEmailDto verifyOtpDto)
         {
-            var user =await userManager.FindByEmailAsync(verifyOtpDto.Email);
-            if (user == null) return false;
 
-            var isValid = await userManager.VerifyUserTokenAsync(
-                user,
-                userManager.Options.Tokens.EmailConfirmationTokenProvider,
-                UserManager<ApplicationUser>.ConfirmEmailTokenPurpose, 
-                verifyOtpDto.Otp
-                );
-            if (!isValid) return false;
+            var key = $"EmailOtp:{verifyOtpDto.Email}";
+
+            var storedOtp = await cacheRepository.GetAsync(key);
+
+            if (storedOtp == null || storedOtp != verifyOtpDto.Opt)  return false;
+            
+            //await cacheRepository.DeleteAsync(key);
 
             return true;
         }

@@ -49,6 +49,7 @@ namespace E_Commerce.Web
                 opt.Password.RequireDigit = true;
                 opt.Password.RequiredLength = 6;
                 opt.SignIn.RequireConfirmedEmail = true;
+                opt.User.RequireUniqueEmail = true;
             })
             .AddRoles<IdentityRole>().AddEntityFrameworkStores<EcomerceDbContext>()
             .AddTokenProvider<DataProtectorTokenProvider<ApplicationUser>>(TokenOptions.DefaultProvider);
@@ -118,6 +119,7 @@ namespace E_Commerce.Web
                 opt.RequireHttpsMetadata = true;
                 opt.TokenValidationParameters = new TokenValidationParameters()
                 {
+                    ValidateIssuerSigningKey = true,
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
@@ -126,6 +128,7 @@ namespace E_Commerce.Web
                     ValidAudience = builder.Configuration["Jwt:Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret!))
                 };
+
             });
 
             builder.Services.AddSwaggerGen(swagger =>

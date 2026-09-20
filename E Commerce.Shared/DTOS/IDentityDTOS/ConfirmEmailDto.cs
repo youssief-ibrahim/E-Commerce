@@ -11,6 +11,7 @@ namespace E_Commerce.Shared.DTOS.IDentityDTOS
     {
         [Required(ErrorMessage = "Email is required"), EmailAddress]
         public string Email { get; set; } = null!;
-        public string Token { get; set; } = null!;
+        [Required(ErrorMessage = "OTP is required")]
+        public string Opt { get; set; } = null!;
     }
 }

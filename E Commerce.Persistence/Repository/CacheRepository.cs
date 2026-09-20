@@ -15,6 +15,12 @@ namespace E_Commerce.Persistence.Repository
         {
             database = connection.GetDatabase();
         }
+
+        public Task DeleteAsync(string key)
+        {
+            return database.KeyDeleteAsync(key);
+        }
+
         public async Task<string?> GetAsync(string key)
         {
             var CacheResult = await database.StringGetAsync(key);

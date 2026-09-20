@@ -11,6 +11,7 @@ namespace E_Commerce.Domain.Entities.IdentityModule
     public class ApplicationUser : IdentityUser
     {
         public string Name { get; set; } = default!;
+        public int TokenVersion { get; set; } = 0;
 
         #region RelationShip
         public ICollection<Order> Orders { get; set; } = [];

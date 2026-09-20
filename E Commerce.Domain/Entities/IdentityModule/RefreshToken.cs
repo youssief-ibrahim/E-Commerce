@@ -9,7 +9,6 @@ namespace E_Commerce.Domain.Entities.IdentityModule
         public DateTime CreatedOn { get; set; } = DateTime.Now;
         public DateTime? RevokedOn { get; set; }
         public string? ReplacedByTokenHash { get; set; }
-        public string? CreatedByIp { get; set; }
 
         [NotMapped]
         public bool IsExpired => DateTime.Now >= ExpiresOn;

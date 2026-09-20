@@ -10,5 +10,7 @@ namespace E_Commerce.Domain.Contracts
     {
         Task<string?> GetAsync(string key);
         Task SetAsync(string key, string CacheValue, TimeSpan timeSpan);
+
+        Task DeleteAsync(string key);
     }
 }

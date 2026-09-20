@@ -12,9 +12,9 @@ namespace E_Commerce.Services_Abstraction
     {
         Task<Result> ForgetPasswordAsync(ForgetPasswordDto forgetPasswordDto);
         Task<Result> ResetPasswordAsync(ResetPasswordDto resetPasswordDto);
-        // confirmEmail
-        Task<bool> VerifyOtpAsync(VerifyOtpDto verifyOtpDto);
-        Task<Result> ConfirmEmalAsync(ConfirmEmailDto confirmDto);
+        Task<string> GenerateOtpAsync(string email);
+        Task<Result> ConfirmEmailAsync(ConfirmEmailDto confirmDto);
+        Task<Result> ResendOtpAsync(string email);
 
     }
 }

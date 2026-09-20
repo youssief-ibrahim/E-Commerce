@@ -68,5 +68,19 @@ namespace E_Commerce.Presentation.Controllers
             return HandleResult(result);
         }
 
+        [Authorize]
+        [HttpPost("Logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var result = await authenticationService.RevokeAllTokensAsync(userId);
+
+            return HandleResult(result);
+        }
+
     }
 }

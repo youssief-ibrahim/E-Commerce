@@ -12,7 +12,6 @@ namespace E_Commerce.Shared.DTOS.IDentityDTOS
     string Name,
     string UserName,
     string password,
-    string WebLink,
     [Phone] string PhoneNumber
     );
 }
