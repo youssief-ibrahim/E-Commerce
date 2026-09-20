@@ -29,9 +29,9 @@ namespace E_Commerce.Persistence.Data.DbContext
             builder.Entity<RefreshToken>(entity =>
             {
                 entity.ToTable("RefreshTokens");
-                entity.HasIndex(token => token.TokenHash).IsUnique();
+                entity.HasIndex(token => token.Token).IsUnique();
                 entity.HasIndex(token => token.ExpiresOn);
-                entity.Property(token => token.TokenHash).IsRequired().HasMaxLength(128);
+                entity.Property(token => token.Token).IsRequired().HasMaxLength(128);
                 entity.HasOne(token => token.User)
                     .WithMany(user => user.RefreshTokens)
                     .HasForeignKey(token => token.UserId)

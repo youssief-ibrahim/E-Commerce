@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace E_Commerce.Persistence.Data.Migrations
 {
     [DbContext(typeof(EcomerceDbContext))]
-    [Migration("20260920183004_AddTokenVersionToUser")]
-    partial class AddTokenVersionToUser
+    [Migration("20260920200545_AddRefreshToken")]
+    partial class AddRefreshToken
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -109,13 +109,13 @@ namespace E_Commerce.Persistence.Data.Migrations
                     b.Property<DateTime>("ExpiresOn")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("ReplacedByTokenHash")
+                    b.Property<string>("ReplacedByToken")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("RevokedOn")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("TokenHash")
+                    b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
@@ -128,7 +128,7 @@ namespace E_Commerce.Persistence.Data.Migrations
 
                     b.HasIndex("ExpiresOn");
 
-                    b.HasIndex("TokenHash")
+                    b.HasIndex("Token")
                         .IsUnique();
 
                     b.HasIndex("UserId");

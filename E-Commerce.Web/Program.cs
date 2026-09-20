@@ -129,6 +129,36 @@ namespace E_Commerce.Web
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret!))
                 };
 
+                opt.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var userManager = context.HttpContext.RequestServices
+                            .GetRequiredService<UserManager<ApplicationUser>>();
+
+                        var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                        if (userId is null)
+                        {
+                            context.Fail("Unauthorized: missing user identifier.");
+                            return;
+                        }
+
+                        var tokenVersionClaim = context.Principal?.FindFirst("TokenVersion")?.Value;
+                        if (tokenVersionClaim is null || !int.TryParse(tokenVersionClaim, out var tokenVersion))
+                        {
+                            context.Fail("Unauthorized: missing or invalid token version.");
+                            return;
+                        }
+
+                        var user = await userManager.FindByIdAsync(userId);
+                        if (user is null || user.TokenVersion != tokenVersion)
+                        {
+                            context.Fail("Unauthorized: token has been invalidated.");
+                            return;
+                        }
+                    }
+                };
+
             });
 
             builder.Services.AddSwaggerGen(swagger =>

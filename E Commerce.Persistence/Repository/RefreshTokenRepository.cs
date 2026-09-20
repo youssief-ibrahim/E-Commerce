@@ -19,10 +19,10 @@ namespace E_Commerce.Persistence.Repository
             await dbContext.RefreshTokens.AddAsync(refreshToken);
         }
 
-        public async Task<RefreshToken?> GetByTokenHashAsync(string tokenHash)
+        public async Task<RefreshToken?> GetByTokenAsync(string token)
         {
             return await dbContext.RefreshTokens
-                .FirstOrDefaultAsync(token => token.TokenHash == tokenHash);
+                .FirstOrDefaultAsync(t => t.Token == token);
         }
 
         public async Task<IReadOnlyList<RefreshToken>> GetActiveByUserIdAsync(string userId)
@@ -31,6 +31,15 @@ namespace E_Commerce.Persistence.Repository
             return await dbContext.RefreshTokens
                 .Where(token => token.UserId == userId && token.RevokedOn == null && token.ExpiresOn > now)
                 .ToListAsync();
+        }
+
+        public async Task<RefreshToken?> GetLatestActiveByUserIdAsync(string userId)
+        {
+            var now = DateTime.Now;
+            return await dbContext.RefreshTokens
+                .Where(token => token.UserId == userId && token.RevokedOn == null && token.ExpiresOn > now)
+                .OrderByDescending(token => token.CreatedOn)
+                .FirstOrDefaultAsync();
         }
 
         public void Update(RefreshToken refreshToken)

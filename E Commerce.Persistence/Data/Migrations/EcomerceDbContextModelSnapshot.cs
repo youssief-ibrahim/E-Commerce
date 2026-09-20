@@ -106,13 +106,13 @@ namespace E_Commerce.Persistence.Data.Migrations
                     b.Property<DateTime>("ExpiresOn")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("ReplacedByTokenHash")
+                    b.Property<string>("ReplacedByToken")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("RevokedOn")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("TokenHash")
+                    b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
@@ -125,7 +125,7 @@ namespace E_Commerce.Persistence.Data.Migrations
 
                     b.HasIndex("ExpiresOn");
 
-                    b.HasIndex("TokenHash")
+                    b.HasIndex("Token")
                         .IsUnique();
 
                     b.HasIndex("UserId");

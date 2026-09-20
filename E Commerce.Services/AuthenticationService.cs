@@ -1,4 +1,4 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -109,10 +109,7 @@ namespace E_Commerce.Services
             if (string.IsNullOrWhiteSpace(refreshToken))
                 return Error.Validation("Refresh token is required");
 
-            var tokenHash = HashToken(refreshToken);
-
-
-            var storedToken = await refreshTokenRepository.GetByTokenHashAsync(tokenHash);
+            var storedToken = await refreshTokenRepository.GetByTokenAsync(refreshToken);
             if (storedToken is null)
                 return Error.Unauthorized("Invalid refresh token", "The refresh token is invalid");
 
@@ -130,7 +127,7 @@ namespace E_Commerce.Services
 
             var (newRefreshToken, plainToken) = CreateRefreshToken(user.Id);
             storedToken.RevokedOn = DateTime.Now;
-            storedToken.ReplacedByTokenHash = newRefreshToken.TokenHash;
+            storedToken.ReplacedByToken = newRefreshToken.Token;
 
             refreshTokenRepository.Update(storedToken);
             await refreshTokenRepository.AddAsync(newRefreshToken);
@@ -151,8 +148,7 @@ namespace E_Commerce.Services
             if (string.IsNullOrWhiteSpace(refreshToken))
                 return Error.Validation("Refresh token is required");
 
-            var tokenHash = HashToken(refreshToken);
-            var storedToken = await refreshTokenRepository.GetByTokenHashAsync(tokenHash);
+            var storedToken = await refreshTokenRepository.GetByTokenAsync(refreshToken);
             if (storedToken is null || !storedToken.IsActive)
                 return Error.Unauthorized("Invalid refresh token", "The refresh token is invalid or already revoked");
 
@@ -167,6 +163,32 @@ namespace E_Commerce.Services
             await refreshTokenRepository.RevokeAllActiveForUserAsync(userId);
             await refreshTokenRepository.SaveChangesAsync();
             return Result.Ok();
+        }
+
+        public async Task<Result> LogoutAsync(string userId, string refreshToken)
+        {
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is null)
+                return Error.NotFound("User Not Found");
+
+            // جيب آخر refresh token صالح للـ user تلقائياً
+            var latestActiveToken = await refreshTokenRepository.GetLatestActiveByUserIdAsync(userId);
+
+            // لو فيه token صالح → اعمله revoke
+            if (latestActiveToken is not null)
+            {
+                latestActiveToken.RevokedOn = DateTime.Now;
+                refreshTokenRepository.Update(latestActiveToken);
+            }
+
+            // Increment TokenVersion → invalidates the current access token immediately
+            user.TokenVersion++;
+            var updateResult = await userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+                return Error.Failure("Failed to invalidate session");
+
+            await refreshTokenRepository.SaveChangesAsync();
+            return Result.Ok("Logged out successfully");
         }
 
         private async Task<UserDto> GenerateAuthResultAsync(ApplicationUser user)
@@ -184,7 +206,7 @@ namespace E_Commerce.Services
             var token = new RefreshToken
             {
                 Id = Guid.NewGuid(),
-                TokenHash = HashToken(plainToken),
+                Token = plainToken,
                 ExpiresOn = DateTime.Now.AddDays(GetRefreshTokenExpirationDays()),
                 CreatedOn = DateTime.Now,
                 UserId = userId
@@ -247,10 +269,5 @@ namespace E_Commerce.Services
             return int.TryParse(value, out var days) && days > 0 ? days : 14;   
         }
 
-        private static string HashToken(string token)
-        {
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
-            return Convert.ToHexString(bytes);
-        }
     }
 }

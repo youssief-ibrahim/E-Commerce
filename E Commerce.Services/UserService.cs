@@ -141,8 +141,6 @@ namespace E_Commerce.Services
 
             if (storedOtp == null || storedOtp != verifyOtpDto.Opt)  return false;
             
-            //await cacheRepository.DeleteAsync(key);
-
             return true;
         }
     }

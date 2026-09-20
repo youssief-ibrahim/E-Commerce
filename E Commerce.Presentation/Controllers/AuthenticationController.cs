@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.DTOS.IDentityDTOS;
 using Microsoft.AspNetCore.Authorization;
@@ -52,6 +52,15 @@ namespace E_Commerce.Presentation.Controllers
             return HandleResult(result);
         }
 
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var result = await authenticationService.LogoutAsync(userId!, string.Empty);
+            return HandleResult(result);
+        }
+
         [HttpGet("check-email")]
         public async Task<ActionResult<bool>> CheckEmail(string email)
         {
@@ -65,20 +74,6 @@ namespace E_Commerce.Presentation.Controllers
         {
             var email = User.FindFirstValue(ClaimTypes.Email);
             var result = await authenticationService.GetUserByEmailAsync(email!);
-            return HandleResult(result);
-        }
-
-        [Authorize]
-        [HttpPost("Logout")]
-        public async Task<IActionResult> Logout()
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized();
-
-            var result = await authenticationService.RevokeAllTokensAsync(userId);
-
             return HandleResult(result);
         }
 
