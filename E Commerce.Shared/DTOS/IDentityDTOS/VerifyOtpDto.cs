@@ -7,12 +7,10 @@ using System.Threading.Tasks;
 
 namespace E_Commerce.Shared.DTOS.IDentityDTOS
 {
-    public record RegisterDto(
-    [EmailAddress] string email,
-    string Name,
-    string UserName,
-    string password,
-    string WebLink,
-    [Phone] string PhoneNumber
-    );
+    public class VerifyOtpDto
+    {
+        public string Email { get; set; } = null!;
+        [Required(ErrorMessage = "OTP is required")]
+        public string Otp { get; set; } = null!;
+    }
 }

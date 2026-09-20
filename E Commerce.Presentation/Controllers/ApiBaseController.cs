@@ -18,6 +18,10 @@ namespace E_Commerce.Presentation.Controllers
         {
             if (result.IsSuccess)
             {
+                if(result.Value != null)
+                {
+                    return Ok(result.Value);
+                }
                 return NoContent();
             }
             else

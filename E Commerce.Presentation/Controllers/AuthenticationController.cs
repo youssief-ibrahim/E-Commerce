@@ -23,10 +23,10 @@ namespace E_Commerce.Presentation.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<UserDto>> Register(RegisterDto registerDTO)
+        public async Task<IActionResult> Register(RegisterDto registerDTO)
         {
             var result = await authenticationService.RegisterAsync(registerDTO);
-            return HandleResult<UserDto>(result);
+            return HandleResult(result);
         }
 
         [HttpPost("refresh")]

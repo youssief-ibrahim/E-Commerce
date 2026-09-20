@@ -7,7 +7,9 @@ using E_Commerce.Domain.Entities.IdentityModule;
 using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.CommonResult;
 using E_Commerce.Shared.DTOS.IDentityDTOS;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
@@ -17,14 +19,17 @@ namespace E_Commerce.Services
     {
         private readonly UserManager<ApplicationUser> userManager;
         private readonly IConfiguration config;
+        private readonly IEmailSender emailSender;
         private readonly IRefreshTokenRepository refreshTokenRepository;
 
         public AuthenticationService(
             UserManager<ApplicationUser> userManager,
+           IEmailSender _emailSender,
             IConfiguration config,
             IRefreshTokenRepository refreshTokenRepository)
         {
             this.userManager = userManager;
+            emailSender = _emailSender;
             this.config = config;
             this.refreshTokenRepository = refreshTokenRepository;
          
@@ -58,10 +63,14 @@ namespace E_Commerce.Services
             {
                 return Error.InvalidCrendentials("User.InvalidCrendentials");
             }
+            if(!await userManager.IsEmailConfirmedAsync(user))
+            {
+                return Error.Validation("Email not confirmed. Please check your email for confirmation instructions.");
+            }
             return await GenerateAuthResultAsync(user);
         }
 
-        public async Task<Result<UserDto>> RegisterAsync(RegisterDto RegisterDTO)
+        public async Task<Result> RegisterAsync(RegisterDto RegisterDTO)
         {
             var user = new ApplicationUser
             {
@@ -73,7 +82,19 @@ namespace E_Commerce.Services
             var IdentityResult = await userManager.CreateAsync(user, RegisterDTO.password);
             if (IdentityResult.Succeeded)
             {
-                return await GenerateAuthResultAsync(user);
+                await userManager.AddToRoleAsync(user, "User");
+                var token=await userManager.GenerateEmailConfirmationTokenAsync(user);
+
+                var confirmationLink = $"{RegisterDTO.WebLink}?email={user.Email}&token={Uri.EscapeDataString(token)}";
+
+                var subject = "Confirm your email";
+                var message = $"<p>Dear {user.UserName},</p>" +
+                              $"<p>Thank you for registering. Please click the link below to confirm your email address:</p>" +
+                              $"<p><a href='{confirmationLink}'>Confirm Email</a></p>";
+
+                await emailSender.SendEmailAsync(RegisterDTO.email, subject, message);
+
+                return Result.Ok("Registration successful. Please check your email to confirm your account.");
             }
             return IdentityResult.Errors.Select(e => Error.Validation(e.Code, e.Description)).ToList();
         }
@@ -219,5 +240,6 @@ namespace E_Commerce.Services
             var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
             return Convert.ToHexString(bytes);
         }
+
     }
 }

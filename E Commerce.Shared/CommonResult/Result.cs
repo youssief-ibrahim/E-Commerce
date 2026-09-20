@@ -11,12 +11,18 @@ namespace E_Commerce.Shared.CommonResult
         protected readonly List<Error> errors = [];
         public bool IsSuccess => errors.Count == 0; // true
         public bool IsFailure => !IsSuccess; // false
+        public string? Value { get; }
         public IReadOnlyList<Error> Errors => errors;
 
         // ok result
         protected Result()
         {
         }
+        protected Result(string value)
+        {
+            Value = value;
+        }
+
         // fail with error
         protected Result(Error error)
         {
@@ -28,12 +34,17 @@ namespace E_Commerce.Shared.CommonResult
             errors.AddRange(_errors);
         }
         public static Result Ok() => new Result();
+        public static Result Ok(string value) => new Result(value);
         public static Result Fail(Error error) => new Result(error);
         public static Result Fail(List<Error> errors) => new Result(errors);
+
+        public static implicit operator Result(string value) => Ok(value);
 
         public static implicit operator Result(Error value) => Fail(value);
 
         public static implicit operator Result(List<Error> value) => Fail(value);
+
+
     }
 
     public class Result<T> : Result

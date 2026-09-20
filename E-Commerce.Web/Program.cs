@@ -1,4 +1,3 @@
-
 using System.Text;
 using E_Commerce.Domain.Contracts;
 using E_Commerce.Domain.Entities.IdentityModule;
@@ -19,6 +18,8 @@ using StackExchange.Redis;
 using Microsoft.OpenApi.Models;
 using Hangfire;
 using E_Commerce.Web.Jobs;
+using E_Commerce.Persistence.Email;
+using Microsoft.AspNetCore.Identity.UI.Services;
 
 namespace E_Commerce.Web
 {
@@ -39,8 +40,19 @@ namespace E_Commerce.Web
             });
             builder.Services.AddKeyedScoped<IDataInitializer, DataInitializer>("Default");
             builder.Services.AddKeyedScoped<IDataInitializer, IdentityDataInitilaizer>("Identity");
-            builder.Services.AddIdentityCore<ApplicationUser>()
-            .AddRoles<IdentityRole>().AddEntityFrameworkStores<EcomerceDbContext>();
+            builder.Services.AddIdentityCore<ApplicationUser>(opt =>
+            {
+                opt.Password.RequireDigit = true;
+                opt.Password.RequireLowercase = true;
+                opt.Password.RequireUppercase = true;
+                opt.Password.RequireNonAlphanumeric = false;
+                opt.Password.RequireDigit = true;
+                opt.Password.RequiredLength = 6;
+                opt.SignIn.RequireConfirmedEmail = true;
+            })
+            .AddRoles<IdentityRole>().AddEntityFrameworkStores<EcomerceDbContext>()
+            .AddTokenProvider<DataProtectorTokenProvider<ApplicationUser>>(TokenOptions.DefaultProvider);
+
             builder.Services.AddAutoMapper(cfg => { }, typeof(ProductService).Assembly);
             builder.Services.Configure<ApiBehaviorOptions>(option =>
             {
@@ -90,6 +102,8 @@ namespace E_Commerce.Web
 
             builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+            builder.Services.AddScoped<IEmailSender, EmailSender>();
+            builder.Services.AddScoped<IUserService, UserService>();
 
             var jwtSecret = builder.Configuration["Jwt:SecretKey"];
             builder.Services.AddAuthentication(opt =>
@@ -178,8 +192,8 @@ namespace E_Commerce.Web
             app.MapHangfireDashboard();
 
            // Register recurring Hangfire job to clean up expired refresh tokens every hour
-
-            RecurringJob.AddOrUpdate<RefreshTokenCleanupJob>(
+           var jobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+            jobManager.AddOrUpdate<RefreshTokenCleanupJob>(
                 recurringJobId: "cleanup-expired-refresh-tokens",
                 methodCall: job => job.ExecuteAsync(),
                 cronExpression: Cron.Hourly(1));
