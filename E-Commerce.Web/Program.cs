@@ -20,6 +20,7 @@ using Hangfire;
 using E_Commerce.Web.Jobs;
 using E_Commerce.Persistence.Email;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using E_Commerce.Persistence.Data.DataExtensions;
 
 namespace E_Commerce.Web
 {
@@ -34,171 +35,19 @@ namespace E_Commerce.Web
             builder.Services.AddControllers();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddDbContext<EcomerceDbContext>(option =>
-            {
-                option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-            });
-            builder.Services.AddKeyedScoped<IDataInitializer, DataInitializer>("Default");
-            builder.Services.AddKeyedScoped<IDataInitializer, IdentityDataInitilaizer>("Identity");
-            builder.Services.AddIdentityCore<ApplicationUser>(opt =>
-            {
-                opt.Password.RequireDigit = true;
-                opt.Password.RequireLowercase = true;
-                opt.Password.RequireUppercase = true;
-                opt.Password.RequireNonAlphanumeric = false;
-                opt.Password.RequireDigit = true;
-                opt.Password.RequiredLength = 6;
-                opt.SignIn.RequireConfirmedEmail = true;
-                opt.User.RequireUniqueEmail = true;
-            })
-            .AddRoles<IdentityRole>().AddEntityFrameworkStores<EcomerceDbContext>()
-            .AddTokenProvider<DataProtectorTokenProvider<ApplicationUser>>(TokenOptions.DefaultProvider);
 
-            builder.Services.AddAutoMapper(cfg => { }, typeof(ProductService).Assembly);
-            builder.Services.Configure<ApiBehaviorOptions>(option =>
-            {
-                option.InvalidModelStateResponseFactory = ApiResponseFactory.GenerateApiValidationResponse;
-            });
+            // Application Services  Database  Redis  CORS
+            builder.Services.AddApplicationServices(builder.Configuration);
+            // Identity + Data Initializers
+            builder.Services.AddIdentityServices();
 
-            #region Services
+            builder.Services.AddRateLimiting();
 
-            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-            builder.Services.AddScoped<IProductService, ProductService>();
-            builder.Services.AddSingleton<IConnectionMultiplexer>(s =>
-            {
-                return ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("RedisConnection")!);
-            });
-            builder.Services.AddScoped<IBasketRepository, BasketRepository>();
-            builder.Services.AddScoped<IBasketService, BasketService>();
-            builder.Services.AddScoped<ICacheRepository, CacheRepository>();
-            builder.Services.AddScoped<ICacheService, CacheService>();
-            builder.Services.AddScoped<IOrderService, OrderService>();
-            builder.Services.AddScoped<IPaymentService, PaymentService>();
-
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AngularDev", policy =>
-                    policy.WithOrigins("http://localhost:4200")
-                        .AllowAnyHeader()
-                        .AllowAnyMethod());
-            });
-            // hangfire configuration
-            builder.Services.AddHangfire(config =>
-            {
-                config.UseRecommendedSerializerSettings();
-                config.SetDataCompatibilityLevel(CompatibilityLevel.Version_170);
-                config.UseSimpleAssemblyNameTypeSerializer()
-                .UseSqlServerStorage(
-                    builder.Configuration.GetConnectionString("DefaultConnection"),
-                    new Hangfire.SqlServer.SqlServerStorageOptions
-                {
-                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-                    SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-                    QueuePollInterval = TimeSpan.Zero,
-                    UseRecommendedIsolationLevel = true, // Concurrency
-                    DisableGlobalLocks = true
-                });
-            });
-            builder.Services.AddHangfireServer();
-
-            builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
-            builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
-            builder.Services.AddScoped<IEmailSender, EmailSender>();
-            builder.Services.AddScoped<IUserService, UserService>();
-
-            var jwtSecret = builder.Configuration["Jwt:SecretKey"];
-            builder.Services.AddAuthentication(opt =>
-            {
-                opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                opt.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-
-            }).AddJwtBearer(opt =>
-            {
-                opt.SaveToken = true;
-                opt.RequireHttpsMetadata = true;
-                opt.TokenValidationParameters = new TokenValidationParameters()
-                {
-                    ValidateIssuerSigningKey = true,
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero,
-                    ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                    ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret!))
-                };
-
-                opt.Events = new JwtBearerEvents
-                {
-                    OnTokenValidated = async context =>
-                    {
-                        var userManager = context.HttpContext.RequestServices
-                            .GetRequiredService<UserManager<ApplicationUser>>();
-
-                        var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                        if (userId is null)
-                        {
-                            context.Fail("Unauthorized: missing user identifier.");
-                            return;
-                        }
-
-                        var tokenVersionClaim = context.Principal?.FindFirst("TokenVersion")?.Value;
-                        if (tokenVersionClaim is null || !int.TryParse(tokenVersionClaim, out var tokenVersion))
-                        {
-                            context.Fail("Unauthorized: missing or invalid token version.");
-                            return;
-                        }
-
-                        var user = await userManager.FindByIdAsync(userId);
-                        if (user is null || user.TokenVersion != tokenVersion)
-                        {
-                            context.Fail("Unauthorized: token has been invalidated.");
-                            return;
-                        }
-                    }
-                };
-
-            });
-
-            builder.Services.AddSwaggerGen(swagger =>
-            {
-                //This is to generate the Default UI of Swagger Documentation
-                swagger.SwaggerDoc("v1", new OpenApiInfo
-                {
-                    Version = "v1",
-                    Title = "ECommerce PlatForm",
-                    Description = "Api for Restaurant"
-                });
-                
-                // To Enable authorization using Swagger (JWT)
-                swagger.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
-                {
-                    Name = "Authorization",
-                    Type = SecuritySchemeType.ApiKey,
-                    Scheme = "Bearer",
-                    BearerFormat = "JWT",
-                    In = ParameterLocation.Header,
-                    Description = "Enter 'Bearer' [space] and then your valid token in the tex"
-                });
-
-                swagger.AddSecurityRequirement(new OpenApiSecurityRequirement
-                 {
-                     {
-                        new OpenApiSecurityScheme
-                        {
-                            Reference = new OpenApiReference
-                             {
-                                  Type = ReferenceType.SecurityScheme,
-                                  Id = "Bearer"
-                            }
-                         },
-                         new string[] {}
-                     }
-                });
-            });
-
-            #endregion
+            builder.Services.AddJwtAuthentication(builder.Configuration);
+            // Hangfire
+            builder.Services.AddInfrastructureServices(builder.Configuration);
+            
+            builder.Services.AddSwaggerDocumentation();
 
             var app = builder.Build();
             #region Seding Data
@@ -218,6 +67,7 @@ namespace E_Commerce.Web
 
             app.UseStaticFiles();
             app.UseCors("AngularDev");
+            app.UseRateLimiter();
             app.UseAuthentication();
             app.UseAuthorization();
 

@@ -158,13 +158,6 @@ namespace E_Commerce.Services
             return Result.Ok();
         }
 
-        public async Task<Result> RevokeAllTokensAsync(string userId)
-        {
-            await refreshTokenRepository.RevokeAllActiveForUserAsync(userId);
-            await refreshTokenRepository.SaveChangesAsync();
-            return Result.Ok();
-        }
-
         public async Task<Result> LogoutAsync(string userId, string refreshToken)
         {
             var user = await userManager.FindByIdAsync(userId);

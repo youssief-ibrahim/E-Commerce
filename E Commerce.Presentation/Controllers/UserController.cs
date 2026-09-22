@@ -8,6 +8,7 @@ using E_Commerce.Services_Abstraction;
 using E_Commerce.Shared.DTOS.IDentityDTOS;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace E_Commerce.Presentation.Controllers
 {
@@ -30,12 +31,14 @@ namespace E_Commerce.Presentation.Controllers
             var res = await userService.ResetPasswordAsync(resetPasswordDto);
             return HandleResult(res);
         }
+        [EnableRateLimiting("OtpVerifyPolicy")]
         [HttpPost("ConfirmEmail")]
         public async Task<IActionResult> ConfirmEmail(ConfirmEmailDto confirmEmailDto)
         {
             var res = await userService.ConfirmEmailAsync(confirmEmailDto);
             return HandleResult(res);
         }
+        [EnableRateLimiting("OtpResendPolicy")]
         [HttpPost("ResendOtp")]
         public async Task<IActionResult> ResendOtp(string email)
         {

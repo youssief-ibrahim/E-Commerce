@@ -11,7 +11,6 @@ namespace E_Commerce.Services_Abstraction
         Task<Result<UserDto>> GetUserByEmailAsync(string email);
         Task<Result<UserDto>> RefreshTokenAsync(string refreshToken);
         Task<Result> RevokeTokenAsync(string refreshToken);
-        Task<Result> RevokeAllTokensAsync(string userId);
         Task<Result> LogoutAsync(string userId, string refreshToken);
     }
 }

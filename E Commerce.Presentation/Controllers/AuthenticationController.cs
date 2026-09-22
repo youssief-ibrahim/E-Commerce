@@ -44,15 +44,6 @@ namespace E_Commerce.Presentation.Controllers
         }
 
         [Authorize]
-        [HttpPost("revoke-all")]
-        public async Task<IActionResult> RevokeAll()
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var result = await authenticationService.RevokeAllTokensAsync(userId!);
-            return HandleResult(result);
-        }
-
-        [Authorize]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
