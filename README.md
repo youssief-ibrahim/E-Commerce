@@ -5,6 +5,7 @@
 A production-ready E-Commerce backend built with **ASP.NET Core 8 Web API**, following a layered architecture with separate **Domain, Services, Persistence, Presentation, and Shared** projects.
 
 The API provides functionality for product management, shopping baskets, orders, authentication, refresh tokens, payments, caching with Redis, email confirmation, and background cleanup jobs.
+
 ---
 
 ## Table of Contents
