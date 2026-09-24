@@ -47,7 +47,7 @@ The project is structured into separate layers to keep business logic, data acce
 
 ## Architecture
 
-The solution is organized into several projects:
+Onion Architecture Structure
 
 ```text
 
